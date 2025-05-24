@@ -39,7 +39,7 @@ class SymbolFileDWARF;
 } // namespace dwarf
 } // namespace lldb_private::plugin
 
-struct ParsedDWARFTypeAttributes;
+struct ParsedDWARFTypeAttributesClang;
 
 class DWARFASTParserClang : public lldb_private::plugin::dwarf::DWARFASTParser {
 public:
@@ -216,7 +216,7 @@ protected:
   lldb::TypeSP
   ParseStructureLikeDIE(const lldb_private::SymbolContext &sc,
                         const lldb_private::plugin::dwarf::DWARFDIE &die,
-                        ParsedDWARFTypeAttributes &attrs);
+                        ParsedDWARFTypeAttributesClang &attrs);
 
   clang::Decl *
   GetClangDeclForDIE(const lldb_private::plugin::dwarf::DWARFDIE &die);
@@ -441,12 +441,12 @@ private:
   lldb::TypeSP
   ParseTypeModifier(const lldb_private::SymbolContext &sc,
                     const lldb_private::plugin::dwarf::DWARFDIE &die,
-                    ParsedDWARFTypeAttributes &attrs);
+                    ParsedDWARFTypeAttributesClang &attrs);
   lldb::TypeSP ParseEnum(const lldb_private::SymbolContext &sc,
                          const lldb_private::plugin::dwarf::DWARFDIE &die,
-                         ParsedDWARFTypeAttributes &attrs);
+                         ParsedDWARFTypeAttributesClang &attrs);
   lldb::TypeSP ParseSubroutine(const lldb_private::plugin::dwarf::DWARFDIE &die,
-                               const ParsedDWARFTypeAttributes &attrs);
+                               const ParsedDWARFTypeAttributesClang &attrs);
 
   /// Helper function called by \ref ParseSubroutine when parsing ObjC-methods.
   ///
@@ -466,7 +466,8 @@ private:
   ParseObjCMethod(const lldb_private::ObjCLanguage::ObjCMethodName &objc_method,
                   const lldb_private::plugin::dwarf::DWARFDIE &die,
                   lldb_private::CompilerType clang_type,
-                  const ParsedDWARFTypeAttributes &attrs, bool is_variadic);
+                  const ParsedDWARFTypeAttributesClang &attrs,
+                  bool is_variadic);
 
   /// Helper function called by \ref ParseSubroutine when parsing C++ methods.
   ///
@@ -494,16 +495,16 @@ private:
   std::pair<bool, lldb::TypeSP>
   ParseCXXMethod(const lldb_private::plugin::dwarf::DWARFDIE &die,
                  lldb_private::CompilerType clang_type,
-                 const ParsedDWARFTypeAttributes &attrs,
+                 const ParsedDWARFTypeAttributesClang &attrs,
                  const lldb_private::plugin::dwarf::DWARFDIE &decl_ctx_die,
                  const lldb_private::plugin::dwarf::DWARFDIE &object_parameter,
                  bool &ignore_containing_context);
 
   lldb::TypeSP ParseArrayType(const lldb_private::plugin::dwarf::DWARFDIE &die,
-                              const ParsedDWARFTypeAttributes &attrs);
+                              const ParsedDWARFTypeAttributesClang &attrs);
   lldb::TypeSP
   ParsePointerToMemberType(const lldb_private::plugin::dwarf::DWARFDIE &die,
-                           const ParsedDWARFTypeAttributes &attrs);
+                           const ParsedDWARFTypeAttributesClang &attrs);
 
   /// Parses a DW_TAG_inheritance DIE into a base/super class.
   ///
@@ -548,8 +549,8 @@ private:
 /// Parsed form of all attributes that are relevant for type reconstruction.
 /// Some attributes are relevant for all kinds of types (declaration), while
 /// others are only meaningful to a specific type (is_virtual)
-struct ParsedDWARFTypeAttributes {
-  explicit ParsedDWARFTypeAttributes(
+struct ParsedDWARFTypeAttributesClang {
+  explicit ParsedDWARFTypeAttributesClang(
       const lldb_private::plugin::dwarf::DWARFDIE &die);
 
   lldb::AccessType accessibility = lldb::eAccessNone;

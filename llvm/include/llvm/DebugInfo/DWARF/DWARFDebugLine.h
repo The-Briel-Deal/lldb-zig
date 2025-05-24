@@ -230,6 +230,13 @@ public:
     }
   };
 
+  struct DeclInfo {
+    std::optional<object::SectionedAddress> Address;
+    std::optional<uint64_t> Line;
+    std::optional<uint64_t> Column;
+    std::optional<uint64_t> File;
+  };
+
   struct LineTable {
     LLVM_ABI LineTable();
 

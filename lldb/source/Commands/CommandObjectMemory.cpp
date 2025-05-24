@@ -365,6 +365,7 @@ protected:
       return;
     }
 
+    ExecutionContextScope *exe_scope = m_exe_ctx.GetBestExecutionContextScope();
     CompilerType compiler_type;
     Status error;
 
@@ -481,6 +482,16 @@ protected:
                         lookup_type_name)) {
               user_defined_types.emplace(*type);
             }
+          }
+
+          if (lang == eLanguageTypeZig) {
+            ValueObjectSP type_valobj;
+            EvaluateExpressionOptions options;
+            options.SetLanguage(lang);
+            if (target->EvaluateExpression(view_as_type_cstr, exe_scope,
+                                           type_valobj) == eExpressionCompleted)
+              if (CompilerType type = type_valobj->GetValueAsCompilerType())
+                user_defined_types.emplace(type);
           }
         }
 
@@ -800,7 +811,6 @@ protected:
       output_stream_p = &result.GetOutputStream();
     }
 
-    ExecutionContextScope *exe_scope = m_exe_ctx.GetBestExecutionContextScope();
     if (compiler_type.GetOpaqueQualType()) {
       for (uint32_t i = 0; i < item_count; ++i) {
         addr_t item_addr = addr + (i * item_byte_size);

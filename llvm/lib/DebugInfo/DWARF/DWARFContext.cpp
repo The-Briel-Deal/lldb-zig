@@ -1623,7 +1623,7 @@ static bool getFunctionNameAndStartLineForAddress(
     FoundResult = true;
   }
   if (auto DeclLineResult = DIE.getDeclLine()) {
-    StartLine = DeclLineResult;
+    StartLine = *DeclLineResult;
     FoundResult = true;
   }
   if (auto LowPcAddr = toSectionedAddress(DIE.find(DW_AT_low_pc)))
@@ -1759,7 +1759,7 @@ DWARFContext::getLineInfoForDataAddress(object::SectionedAddress Address) {
 
   if (DWARFDie Die = CU->getVariableForAddress(Address.Address)) {
     Result.FileName = Die.getDeclFile(FileLineInfoKind::AbsoluteFilePath);
-    Result.Line = Die.getDeclLine();
+    Result.Line = Die.getDeclLine().value_or(0);
   }
 
   return Result;
@@ -1854,7 +1854,7 @@ DWARFContext::getInliningInfoForAddress(object::SectionedAddress Address,
     if (const char *Name = FunctionDIE.getSubroutineName(Spec.FNKind))
       Frame.FunctionName = Name;
     if (auto DeclLineResult = FunctionDIE.getDeclLine())
-      Frame.StartLine = DeclLineResult;
+      Frame.StartLine = *DeclLineResult;
     Frame.StartFileName = FunctionDIE.getDeclFile(Spec.FLIKind);
     if (auto LowPcAddr = toSectionedAddress(FunctionDIE.find(DW_AT_low_pc)))
       Frame.StartAddress = LowPcAddr->Address;
