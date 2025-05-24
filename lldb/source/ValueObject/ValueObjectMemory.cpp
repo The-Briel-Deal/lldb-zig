@@ -146,12 +146,22 @@ llvm::Expected<uint32_t> ValueObjectMemory::CalculateNumChildren(uint32_t max) {
 llvm::Expected<uint64_t> ValueObjectMemory::GetByteSize() {
   ExecutionContext exe_ctx(GetExecutionContextRef());
   if (m_type_sp) {
-    if (auto size =
+    if (auto byte_size =
             m_type_sp->GetByteSize(exe_ctx.GetBestExecutionContextScope()))
-      return *size;
+      return *byte_size;
     return llvm::createStringError("could not get byte size of memory object");
   }
   return m_compiler_type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
+}
+llvm::Expected<uint64_t> ValueObjectMemory::GetBitSize() {
+  ExecutionContext exe_ctx(GetExecutionContextRef());
+  if (m_type_sp) {
+    if (auto bit_size =
+            m_type_sp->GetBitSize(exe_ctx.GetBestExecutionContextScope()))
+      return *bit_size;
+    return llvm::createStringError("could not get bit size of memory object");
+  }
+  return m_compiler_type.GetBitSize(exe_ctx.GetBestExecutionContextScope());
 }
 
 lldb::ValueType ValueObjectMemory::GetValueType() const {
