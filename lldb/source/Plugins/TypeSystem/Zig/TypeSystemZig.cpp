@@ -2731,7 +2731,9 @@ TypeSystemZig::GetArrayElementType(opaque_compiler_type_t type,
 }
 
 CompilerType TypeSystemZig::GetCanonicalType(opaque_compiler_type_t type) {
-  llvm_unreachable("unimplemented");
+  // This might be wrong but it stops the crash from this being unreachable. I'm
+  // not sure if this will stop "aliased" types from working.
+  return WrapType(UnwrapType(type));
 }
 
 CompilerType
