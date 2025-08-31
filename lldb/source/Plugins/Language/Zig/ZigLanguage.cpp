@@ -127,7 +127,7 @@ ZigLanguage::GetHardcodedSummaries() {
           new StringSummaryFormat(TypeSummaryImpl::Flags(), "len=${var.len}"));
       CompilerType type = valobj.GetCompilerType();
       if (auto type_system =
-              type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+              type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
         if (ZigPointerType *zig_type =
                 llvm::dyn_cast<ZigPointerType>(type_system->UnwrapType(type)))
           if (zig_type->GetSize() == ZigPointerType::Size::Slice)
@@ -153,7 +153,7 @@ ZigLanguage::GetHardcodedSynthetics() {
                   formatters::ZigArrayPointerSyntheticFrontEndCreator));
           CompilerType type = valobj.GetCompilerType();
           if (auto type_system =
-                  type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+                  type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
             if (ZigPointerType *zig_type = llvm::dyn_cast<ZigPointerType>(
                     type_system->UnwrapType(type)))
               if (zig_type->GetSize() == ZigPointerType::Size::One &&
@@ -170,7 +170,7 @@ ZigLanguage::GetHardcodedSynthetics() {
                   formatters::ZigSliceSyntheticFrontEndCreator));
           CompilerType type = valobj.GetCompilerType();
           if (auto type_system =
-                  type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+                  type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
             if (ZigPointerType *zig_type = llvm::dyn_cast<ZigPointerType>(
                     type_system->UnwrapType(type)))
               if (zig_type->GetSize() == ZigPointerType::Size::Slice)
@@ -187,7 +187,7 @@ ZigLanguage::GetHardcodedSynthetics() {
                   formatters::ZigErrorUnionSyntheticFrontEndCreator));
           CompilerType type = valobj.GetCompilerType();
           if (auto type_system =
-                  type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+                  type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
             if (llvm::isa<ZigErrorUnionType>(type_system->UnwrapType(type)))
               return formatter_sp;
           return nullptr;
@@ -201,7 +201,7 @@ ZigLanguage::GetHardcodedSynthetics() {
                   formatters::ZigOptionalSyntheticFrontEndCreator));
           CompilerType type = valobj.GetCompilerType();
           if (auto type_system =
-                  type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+                  type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
             if (llvm::isa<ZigOptionalType>(type_system->UnwrapType(type)))
               return formatter_sp;
           return nullptr;
@@ -216,7 +216,7 @@ ZigLanguage::GetHardcodedSynthetics() {
                   formatters::ZigTaggedUnionSyntheticFrontEndCreator));
           CompilerType type = valobj.GetCompilerType();
           if (auto type_system =
-                  type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>())
+                  type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>())
             if (llvm::isa<ZigTaggedUnionType>(type_system->UnwrapType(type)))
               return formatter_sp;
           return nullptr;
@@ -232,7 +232,7 @@ void ZigLanguage::Initialize() {
 
 LazyBool ZigLanguage::IsLogicalTrue(ValueObject &valobj, Status &error) {
   CompilerType type = valobj.GetCompilerType();
-  auto type_system = type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+  auto type_system = type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
   if (!type_system) {
     error = Status::FromErrorString("unexpected type system type");
     return eLazyBoolNo;
@@ -265,13 +265,14 @@ bool ZigLanguage::IsNilReference(ValueObject &valobj) {
   if (valobj.GetObjectRuntimeLanguage() != GetLanguageType())
     return false;
   CompilerType type = valobj.GetCompilerType();
-  auto type_system = type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+  auto type_system = type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
   if (!type_system)
     return false;
   ZigType *zig_type = type_system->UnwrapType(type);
   if (llvm::isa_and_present<ZigNullType>(zig_type)) {
     return true;
-  } else if (llvm::isa_and_present<ZigOptionalType>(zig_type)) {
+  }
+  if (llvm::isa_and_present<ZigOptionalType>(zig_type)) {
     if (auto num_children_or_err = valobj.GetNumChildren(1))
       return *num_children_or_err == 0;
   } else if (ZigPointerType *ptr_type =
