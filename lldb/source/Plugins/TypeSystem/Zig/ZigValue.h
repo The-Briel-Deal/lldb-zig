@@ -472,7 +472,8 @@ public:
     return llvm::cast<ZigComptimeIntType>(ZigValue::GetType());
   }
   llvm::ArrayRef<llvm::APInt::WordType> GetWords() const {
-    return llvm::ArrayRef(getTrailingObjectsNonStrict<llvm::APInt::WordType>(), m_words);
+    return llvm::ArrayRef(getTrailingObjectsNonStrict<llvm::APInt::WordType>(),
+                          m_words);
   }
   uint64_t GetWordsBitSize() const {
     return llvm::APInt::APINT_BITS_PER_WORD * m_words;
@@ -1254,8 +1255,8 @@ public:
                uint64_t byte_size, llvm::Align align);
 
   llvm::ArrayRef<ZigTupleField> GetFields() const {
-    return llvm::ArrayRef<ZigTupleField>(getTrailingObjectsNonStrict<ZigTupleField>(),
-                                         m_num_fields);
+    return llvm::ArrayRef<ZigTupleField>(
+        getTrailingObjectsNonStrict<ZigTupleField>(), m_num_fields);
   }
   bool HasNoPossibleValues() const final {
     for (const ZigTupleField &field : GetFields())

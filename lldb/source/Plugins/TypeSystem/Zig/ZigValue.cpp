@@ -144,9 +144,9 @@ ZigComptimeInt::ZigComptimeInt(TypeSystemZig *type_system,
       m_words(value.isZero()
                   ? 0
                   : llvm::APInt::getNumWords(value.getSignificantBits())) {
-  std::uninitialized_copy_n(value.extOrTrunc(GetWordsBitSize()).getRawData(),
-                            m_words,
-                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
+  std::uninitialized_copy_n(
+      value.extOrTrunc(GetWordsBitSize()).getRawData(), m_words,
+      getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 ZigComptimeFloatType::ZigComptimeFloatType(TypeSystemZig *type_system)
@@ -220,8 +220,9 @@ ZigInt::ZigInt(TypeSystemZig *type_system, ZigIntType *type,
     : ZigValue(type_system, Kind::Int, type) {
   assert(type->GetBitSize() == value.getBitWidth() &&
          "type and value bit width mismatch");
-  std::uninitialized_copy_n(value.getRawData(), value.getNumWords(),
-                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
+  std::uninitialized_copy_n(
+      value.getRawData(), value.getNumWords(),
+      getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 ZigFloatType::ZigFloatType(TypeSystemZig *type_system, ConstString name,
@@ -242,8 +243,9 @@ ZigFloat::ZigFloat(TypeSystemZig *type_system, ZigFloatType *type,
   assert(&type->GetSemantics() == &value.getSemantics() &&
          "semantics mismatch");
   llvm::APInt bits = value.bitcastToAPInt();
-  std::uninitialized_copy_n(bits.getRawData(), bits.getNumWords(),
-                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
+  std::uninitialized_copy_n(
+      bits.getRawData(), bits.getNumWords(),
+      getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 static uint64_t OptionalTypeByteSize(ZigType *child_type) {

@@ -178,8 +178,7 @@ ValueObjectSP ValueObjectZig::DoCast(const CompilerType &compiler_type) {
       return Create(exe_scope,
                     new_type_system->GetInt(new_int_type, new_int_val));
     }
-    if (ZigFloatType *new_float_type =
-                   llvm::dyn_cast<ZigFloatType>(new_type)) {
+    if (ZigFloatType *new_float_type = llvm::dyn_cast<ZigFloatType>(new_type)) {
       llvm::APFloat float_val = old_comptime_float->GetValue();
       bool loses_info;
       float_val.convert(new_float_type->GetSemantics(),
