@@ -40,10 +40,6 @@ class ValueObjectSyntheticChild : public ValueObject {
     return GetCompilerType().GetByteSize(
         exe_ctx.GetBestExecutionContextScope());
   }
-  llvm::Expected<uint64_t> GetBitSize() final {
-    ExecutionContext exe_ctx(GetExecutionContextRef());
-    return GetCompilerType().GetBitSize(exe_ctx.GetBestExecutionContextScope());
-  }
 
   lldb::ValueType GetValueType() const final {
     return m_parent->GetValueType();
@@ -125,7 +121,7 @@ public:
     if (CompilerType deref_map_type = map_type.GetPointeeType())
       map_type = deref_map_type;
     auto type_system =
-        map_type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+        map_type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
     if (!type_system)
       return lldb::eRefetch;
     ExecutionContext exe_ctx(m_backend.GetExecutionContextRef());
@@ -144,7 +140,8 @@ public:
     m_metadata = m_backend.GetChildAtNamePath({"metadata", "?"}).get();
     if (!m_metadata)
       return lldb::eRefetch;
-    lldb::addr_t metadata_addr = m_metadata->GetPointerValue();
+    ValueObject::AddrAndType ptr_and_type = m_metadata->GetPointerValue();
+    lldb::addr_t metadata_addr = ptr_and_type.address;
     if (metadata_addr == LLDB_INVALID_ADDRESS || !metadata_addr)
       return lldb::eRefetch;
     ValueObjectZig *header_type = ValueObjectZig::dyn_cast_if_present(
@@ -289,7 +286,7 @@ public:
     if (CompilerType deref_list_type = list_type.GetPointeeType())
       list_type = deref_list_type;
     auto type_system =
-        list_type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+        list_type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
     if (!type_system)
       return lldb::eRefetch;
     switch (GetVariant()) {
@@ -454,6 +451,7 @@ private:
     case Variant::Slice:
       return "ptrs";
     }
+    llvm_unreachable("All cases enumerated.");
   }
 
   CompilerType m_elem_type;
