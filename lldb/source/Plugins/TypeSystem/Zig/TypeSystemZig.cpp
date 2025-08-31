@@ -2953,20 +2953,12 @@ CompilerType TypeSystemZig::GetBasicTypeFromAST(BasicType basic_type) {
 }
 
 const llvm::fltSemantics &
-TypeSystemZig::GetFloatTypeSemantics(size_t byte_size) {
+TypeSystemZig::GetFloatTypeSemantics(size_t byte_size, lldb::Format format) {
   if (byte_size == 12)
     byte_size = 10;
   return ZigFloatType::GetSemantics(byte_size * 8);
 }
 
-llvm::Expected<uint64_t>
-TypeSystemZig::GetByteSize(opaque_compiler_type_t type,
-                           ExecutionContextScope *exe_scope) {
-  if (ZigType *zig_type = UnwrapType(type))
-    return zig_type->GetByteSize();
-  return llvm::createStringError("could not get size of type %s",
-                                 GetDisplayTypeName(type).AsCString(""));
-}
 llvm::Expected<uint64_t>
 TypeSystemZig::GetBitSize(opaque_compiler_type_t type,
                           ExecutionContextScope *exe_scope) {
@@ -3479,8 +3471,8 @@ CompilerDecl TypeSystemZig::GetStaticFieldWithName(opaque_compiler_type_t type,
 
 llvm::Expected<CompilerType> TypeSystemZig::GetDereferencedType(
     lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx,
-    std::string &deref_name, uint64_t &deref_bit_size,
-    int64_t &deref_bit_offset, ValueObject *valobj, uint64_t &language_flags) {
+    std::string &deref_name, uint32_t &deref_byte_size,
+    int32_t &deref_byte_offset, ValueObject *valobj, uint64_t &language_flags) {
   if (!llvm::isa_and_present<ZigPointerType>(UnwrapType(type)))
     return llvm::createStringError("not a pointer type");
   uint32_t child_bitfield_bit_size = 0;
@@ -3488,25 +3480,25 @@ llvm::Expected<CompilerType> TypeSystemZig::GetDereferencedType(
   bool child_is_base_class;
   bool child_is_deref_of_parent;
   return GetChildCompilerTypeAtIndex(
-      type, exe_ctx, 0, false, true, false, deref_name, deref_bit_size,
-      deref_bit_offset, child_bitfield_bit_size, child_bitfield_bit_offset,
+      type, exe_ctx, 0, false, true, false, deref_name, deref_byte_size,
+      deref_byte_offset, child_bitfield_bit_size, child_bitfield_bit_offset,
       child_is_base_class, child_is_deref_of_parent, valobj, language_flags);
 }
 
 llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
     opaque_compiler_type_t type, ExecutionContext *exe_ctx, size_t idx,
     bool transparent_pointers, bool omit_empty_base_classes,
-    bool ignore_array_bounds, std::string &child_name, uint64_t &child_bit_size,
-    int64_t &child_bit_offset, uint32_t &child_bitfield_bit_size,
-    uint32_t &child_bitfield_bit_offset, bool &child_is_base_class,
-    bool &child_is_deref_of_parent, ValueObject *valobj,
-    uint64_t &language_flags) {
+    bool ignore_array_bounds, std::string &child_name,
+    uint32_t &child_byte_size, int32_t &child_byte_offset,
+    uint32_t &child_bitfield_bit_size, uint32_t &child_bitfield_bit_offset,
+    bool &child_is_base_class, bool &child_is_deref_of_parent,
+    ValueObject *valobj, uint64_t &language_flags) {
   if (!type)
     return WrapType();
 
   child_name.clear();
-  child_bit_size = 0;
-  child_bit_offset = 0;
+  child_byte_size = 0;
+  child_byte_offset = 0;
   child_bitfield_bit_size = 0;
   child_bitfield_bit_offset = 0;
   child_is_base_class = false;
@@ -3565,25 +3557,27 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
       case 0:
         child_name = ".has_value";
         if (llvm::isa<ZigErrorSetType>(child_type)) {
-          child_bit_size = child_type->GetBitSize();
-          return WrapType(*m_int_types.find_as(
-              ZigIntTypeKeyInfo::Key(false, child_bit_size)));
+          child_byte_size = child_type->GetByteSize();
+          // TODO: The way I'm handling the child_bitfield_bit_size should be
+          // double checked.
+          return WrapType(*m_int_types.find_as(ZigIntTypeKeyInfo::Key(
+              false, child_byte_size * UINT64_C(8) + child_bitfield_bit_size)));
         }
         if (ZigPointerType *child_pointer_type =
                 llvm::dyn_cast<ZigPointerType>(child_type))
           if (!child_pointer_type->IsAllowZero()) {
             ZigType *usize_type = UnwrapType(GetSizeType(false));
-            child_bit_size = usize_type->GetBitSize();
+            child_byte_size = usize_type->GetByteSize();
             return WrapType(usize_type);
           }
-        child_bit_offset = UINT64_C(8) * child_type->GetByteSize();
-        child_bit_size = 1;
+        child_byte_offset = child_type->GetByteSize();
+        child_byte_size = 1;
         return WrapType(m_bool_type);
       case 1:
         if (valobj)
           child_name = valobj->GetName().GetStringRef();
         child_name += ".?";
-        child_bit_size = UINT64_C(8) * child_type->GetByteSize();
+        child_byte_size = child_type->GetByteSize();
         return WrapType(child_type);
       default:
         llvm_unreachable("index was valid");
@@ -3599,23 +3593,19 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
         child_name = ".error";
         if (error_union_type->GetErrorSet()->GetAlign() <=
             error_union_type->GetPayload()->GetAlign())
-          child_bit_offset =
-              UINT64_C(8) *
+          child_byte_offset =
               alignTo(error_union_type->GetPayload()->GetByteSize(),
                       error_union_type->GetErrorSet()->GetAlign());
-        child_bit_size =
-            UINT64_C(8) * error_union_type->GetErrorSet()->GetByteSize();
+        child_byte_size = error_union_type->GetErrorSet()->GetByteSize();
         return WrapType(error_union_type->GetErrorSet());
       case 1:
         child_name = ".value";
         if (error_union_type->GetErrorSet()->GetAlign() >
             error_union_type->GetPayload()->GetAlign())
-          child_bit_offset =
-              UINT64_C(8) *
+          child_byte_offset =
               alignTo(error_union_type->GetErrorSet()->GetByteSize(),
                       error_union_type->GetPayload()->GetAlign());
-        child_bit_size =
-            UINT64_C(8) * error_union_type->GetPayload()->GetByteSize();
+        child_byte_size = error_union_type->GetPayload()->GetByteSize();
         return WrapType(error_union_type->GetPayload());
       default:
         llvm_unreachable("index was valid");
@@ -3632,7 +3622,7 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
         if (valobj)
           child_name = valobj->GetName().GetStringRef();
         child_name += ".*";
-        child_bit_size = child_type->GetBitSize();
+        child_byte_size = child_type->GetByteSize();
         return WrapType(child_type);
       }
       break;
@@ -3640,13 +3630,13 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
     case ZigPointerType::Size::C:
       child_is_deref_of_parent = true;
       child_name += llvm::formatv("[{0:d}]", idx);
-      child_bit_size = UINT64_C(8) * child_type->GetByteSize();
-      child_bit_offset = idx * child_bit_size;
+      child_byte_size = child_type->GetByteSize();
+      child_byte_offset = idx * child_byte_size;
       return WrapType(child_type);
     case ZigPointerType::Size::Slice:
       if (idx_is_valid) {
         ZigType *usize_type = UnwrapType(GetSizeType(false));
-        child_bit_size = usize_type->GetBitSize();
+        child_byte_size = usize_type->GetByteSize();
         switch (idx) {
         case 0:
           child_name = ".ptr";
@@ -3657,7 +3647,7 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
               pointer_type->IsVolatile(), child_type);
         case 1:
           child_name = ".len";
-          child_bit_offset = child_bit_size;
+          child_byte_offset = child_byte_size;
           return WrapType(usize_type);
         default:
           llvm_unreachable("index was valid");
@@ -3674,8 +3664,8 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
       ZigType *child_type =
           llvm::cast<ZigSequenceType>(zig_type)->GetChildType();
       child_name = llvm::formatv("[{0:d}]", idx);
-      child_bit_size = UINT64_C(8) * child_type->GetByteSize();
-      child_bit_offset = idx * child_bit_size;
+      child_byte_size = child_type->GetByteSize();
+      child_byte_offset = idx * child_byte_size;
       return WrapType(child_type);
     }
     break;
@@ -3683,16 +3673,17 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
     if (idx_is_valid) {
       llvm::ArrayRef<ZigTupleField> fields =
           llvm::cast<ZigTupleType>(zig_type)->GetFields();
-      uint64_t child_byte_offset = 0;
+      uint64_t inner_child_byte_offset = 0;
       for (const ZigTupleField &field : fields.take_front(idx))
-        child_byte_offset =
-            alignTo(child_byte_offset, field.GetType()->GetAlign()) +
+        inner_child_byte_offset =
+            alignTo(inner_child_byte_offset, field.GetType()->GetAlign()) +
             field.GetType()->GetByteSize();
       ZigType *field_type = fields[idx].GetType();
-      child_byte_offset = alignTo(child_byte_offset, field_type->GetAlign());
+      inner_child_byte_offset =
+          alignTo(inner_child_byte_offset, field_type->GetAlign());
       child_name = llvm::formatv("[{0:d}]", idx);
-      child_bit_size = UINT64_C(8) * field_type->GetByteSize();
-      child_bit_offset = UINT64_C(8) * child_byte_offset;
+      child_byte_size = field_type->GetByteSize();
+      child_byte_offset = inner_child_byte_offset;
       return WrapType(field_type);
     }
     break;
@@ -3701,9 +3692,8 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
       ZigTaggedUnionType *tagged_union_type =
           llvm::cast<ZigTaggedUnionType>(zig_type);
       child_name = ".tag";
-      child_bit_offset = tagged_union_type->GetTagBitOffset();
-      child_bit_size =
-          UINT64_C(8) * tagged_union_type->GetTagType()->GetByteSize();
+      child_byte_offset = tagged_union_type->GetTagByteOffset();
+      child_byte_size = tagged_union_type->GetTagType()->GetByteSize();
       return WrapType(tagged_union_type->GetTagType());
     }
     --idx;
@@ -3723,14 +3713,18 @@ llvm::Expected<CompilerType> TypeSystemZig::GetChildCompilerTypeAtIndex(
       case ZigValue::Kind::StructType:
       case ZigValue::Kind::UnionType:
       case ZigValue::Kind::TaggedUnionType:
-        child_bit_size = UINT64_C(8) * field_type->GetByteSize();
+        child_byte_size = field_type->GetByteSize();
         break;
       case ZigValue::Kind::PackedStructType:
       case ZigValue::Kind::PackedUnionType:
-        child_bit_size = field_type->GetBitSize();
+        child_byte_size = field_type->GetByteSize();
         break;
       }
-      child_bit_offset = field.GetBitOffset();
+      // TODO: This should honestly be double checked, I'm not sure if the bit
+      // offset is added to the byte offset when finding the real offset.
+      int bit_offset = field.GetBitOffset();
+      child_byte_offset = bit_offset / 8;
+      child_bitfield_bit_offset = bit_offset % 8;
       return WrapType(field_type);
     }
     break;

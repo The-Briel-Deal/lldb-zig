@@ -1424,6 +1424,7 @@ public:
 
   ZigTagType *GetTagType() { return m_tag_type; }
   uint64_t GetTagBitOffset() const { return m_tag_byte_offset * UINT64_C(8); }
+  uint32_t GetTagByteOffset() const { return m_tag_byte_offset; }
 
 private:
   ZigTagType *m_tag_type;
