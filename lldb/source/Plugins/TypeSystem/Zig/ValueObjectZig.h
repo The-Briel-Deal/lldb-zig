@@ -35,11 +35,8 @@ public:
                                     ZigValue *zig_value);
 
   llvm::Expected<uint64_t> GetByteSize() override;
-  llvm::Expected<uint64_t> GetBitSize() override;
 
   lldb::ValueType GetValueType() const override;
-
-  CompilerType GetValueAsCompilerType() override;
 
   lldb::ValueObjectSP GetChildAtIndex(uint32_t idx, bool can_create) override;
 
@@ -52,7 +49,7 @@ public:
 
   lldb::ValueObjectSP AddressOf(Status &error) override;
 
-  lldb::ValueObjectSP Cast(const CompilerType &compiler_type) override;
+  lldb::ValueObjectSP DoCast(const CompilerType &compiler_type) override;
 
   lldb::ValueObjectSP CastPointerType(const char *name,
                                       CompilerType &ast_type) override;

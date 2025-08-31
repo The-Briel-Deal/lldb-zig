@@ -384,11 +384,7 @@ public:
 
   // Exploring the type
 
-  const llvm::fltSemantics &GetFloatTypeSemantics(size_t byte_size) override;
-
-  llvm::Expected<uint64_t>
-  GetByteSize(lldb::opaque_compiler_type_t type,
-              ExecutionContextScope *exe_scope) override;
+  const llvm::fltSemantics &GetFloatTypeSemantics(size_t byte_size, lldb::Format format) override;
 
   llvm::Expected<uint64_t>
   GetBitSize(lldb::opaque_compiler_type_t type,
@@ -441,14 +437,14 @@ public:
   llvm::Expected<CompilerType>
   GetDereferencedType(lldb::opaque_compiler_type_t type,
                       ExecutionContext *exe_ctx, std::string &deref_name,
-                      uint64_t &deref_bit_size, int64_t &deref_bit_offset,
+                      uint32_t &deref_byte_size, int32_t &deref_byte_offset,
                       ValueObject *valobj, uint64_t &language_flags) override;
 
   llvm::Expected<CompilerType> GetChildCompilerTypeAtIndex(
       lldb::opaque_compiler_type_t type, ExecutionContext *exe_ctx, size_t idx,
       bool transparent_pointers, bool omit_empty_base_classes,
       bool ignore_array_bounds, std::string &child_name,
-      uint64_t &child_bit_size, int64_t &child_bit_offset,
+      uint32_t &child_bit_size, int32_t &child_bit_offset,
       uint32_t &child_bitfield_bit_size, uint32_t &child_bitfield_bit_offset,
       bool &child_is_base_class, bool &child_is_deref_of_parent,
       ValueObject *valobj, uint64_t &language_flags) override;
@@ -472,16 +468,8 @@ public:
                                 bool omit_empty_base_classes,
                                 std::vector<uint32_t> &child_indices) override;
 
-  ValueObject *GetStringPointer(lldb::opaque_compiler_type_t type,
-                                ValueObject *valobj, uint64_t *length,
-                                char *terminator) override;
-
   CompilerType GetDirectNestedTypeWithName(lldb::opaque_compiler_type_t type,
                                            llvm::StringRef name) override;
-
-  lldb::ValueObjectSP
-  CreateValueFromType(lldb::opaque_compiler_type_t type,
-                      ExecutionContextScope *exe_scope) override;
 
   static void PrintIdentifier(llvm::StringRef id, Stream &s);
 
@@ -516,7 +504,7 @@ public:
 #endif
 
   /// \see TypeSystem::Dump
-  void Dump(llvm::raw_ostream &output) override;
+  void Dump(llvm::raw_ostream &output, llvm::StringRef filter) override;
 
   CompilerDeclContext WrapScope(ZigScope *zig_scope = nullptr);
   ZigScope *UnwrapScope(void *opaque_decl_ctx);
@@ -643,7 +631,7 @@ public:
                                     ValueObject *ctx_obj) override;
 
   /// \see TypeSystem::Dump
-  void Dump(llvm::raw_ostream &output) override;
+  void Dump(llvm::raw_ostream &output, llvm::StringRef filter) override;
 
 private:
   lldb::TargetWP m_target_wp;

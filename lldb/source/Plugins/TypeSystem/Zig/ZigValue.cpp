@@ -109,7 +109,7 @@ ZigData::ZigData(TypeSystemZig *type_system, ZigType *type,
     : ZigValue(type_system, Kind::Data, type) {
   assert(type->GetByteSize() == data.size() && "type and data size mismatch");
   std::uninitialized_copy(data.begin(), data.end(),
-                          getTrailingObjects<uint8_t>());
+                          getTrailingObjectsNonStrict<uint8_t>());
 }
 
 ZigOnlyPossibleValue::ZigOnlyPossibleValue(TypeSystemZig *type_system,
@@ -146,7 +146,7 @@ ZigComptimeInt::ZigComptimeInt(TypeSystemZig *type_system,
                   : llvm::APInt::getNumWords(value.getSignificantBits())) {
   std::uninitialized_copy_n(value.extOrTrunc(GetWordsBitSize()).getRawData(),
                             m_words,
-                            getTrailingObjects<llvm::APInt::WordType>());
+                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 ZigComptimeFloatType::ZigComptimeFloatType(TypeSystemZig *type_system)
@@ -221,7 +221,7 @@ ZigInt::ZigInt(TypeSystemZig *type_system, ZigIntType *type,
   assert(type->GetBitSize() == value.getBitWidth() &&
          "type and value bit width mismatch");
   std::uninitialized_copy_n(value.getRawData(), value.getNumWords(),
-                            getTrailingObjects<llvm::APInt::WordType>());
+                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 ZigFloatType::ZigFloatType(TypeSystemZig *type_system, ConstString name,
@@ -243,7 +243,7 @@ ZigFloat::ZigFloat(TypeSystemZig *type_system, ZigFloatType *type,
          "semantics mismatch");
   llvm::APInt bits = value.bitcastToAPInt();
   std::uninitialized_copy_n(bits.getRawData(), bits.getNumWords(),
-                            getTrailingObjects<llvm::APInt::WordType>());
+                            getTrailingObjectsNonStrict<llvm::APInt::WordType>());
 }
 
 static uint64_t OptionalTypeByteSize(ZigType *child_type) {
@@ -408,7 +408,7 @@ ZigTag::ZigTag(TypeSystemZig *type_system, ZigTagType *type, ZigInt *value)
 template <typename DerivedType>
 llvm::ArrayRef<ZigTagField> ZigTagTypeImpl<DerivedType>::GetFields() const {
   return llvm::ArrayRef<ZigTagField>(
-      TrailingObjects::template getTrailingObjects<ZigTagField>(),
+      TrailingObjects::template getTrailingObjectsNonStrict<ZigTagField>(),
       GetNumFields());
 }
 
@@ -421,7 +421,7 @@ ZigTagTypeImpl<DerivedType>::ZigTagTypeImpl(TypeSystemZig *type_system,
                  fields.size()) {
   std::uninitialized_copy(
       fields.begin(), fields.end(),
-      TrailingObjects::template getTrailingObjects<ZigTagField>());
+      TrailingObjects::template getTrailingObjectsNonStrict<ZigTagField>());
 }
 
 template class lldb_private::ZigTagTypeImpl<ZigErrorSetType>;
@@ -498,7 +498,7 @@ ZigFunctionType::ZigFunctionType(TypeSystemZig *type_system,
       m_is_var_args(is_var_args), m_num_params(param_types.size()),
       m_ret_type(ret_type) {
   std::uninitialized_copy(param_types.begin(), param_types.end(),
-                          getTrailingObjects<ZigType *>());
+                          getTrailingObjectsNonStrict<ZigType *>());
 }
 
 void ZigFunctionType::PrintName(Stream &s) const {
@@ -540,7 +540,7 @@ ZigTupleType::ZigTupleType(TypeSystemZig *type_system,
     : ZigType(type_system, Kind::TupleType, byte_size, align),
       m_num_fields(fields.size()) {
   std::uninitialized_copy(fields.begin(), fields.end(),
-                          getTrailingObjects<ZigTupleField>());
+                          getTrailingObjectsNonStrict<ZigTupleField>());
 }
 
 void ZigTupleType::PrintName(Stream &s) const {
