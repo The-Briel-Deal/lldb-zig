@@ -559,10 +559,10 @@ Function *DWARFASTParserZig::ParseFunctionFromDWARF(CompileUnit &comp_unit,
   llvm::DWARFAddressRangesVector unused_func_ranges;
   const char *name = nullptr;
   const char *mangled = nullptr;
-  std::optional<std::pair<DWARFUnit *, size_t>> decl_file;
+  std::optional<int> decl_file;
   std::optional<int> decl_line;
   std::optional<int> decl_column;
-  std::optional<std::pair<DWARFUnit *, size_t>> call_file;
+  std::optional<int> call_file;
   std::optional<int> call_line;
   std::optional<int> call_column;
   DWARFExpressionList frame_base;
@@ -585,7 +585,7 @@ Function *DWARFASTParserZig::ParseFunctionFromDWARF(CompileUnit &comp_unit,
     std::unique_ptr<Declaration> decl_up;
     if (decl_file || decl_line || decl_column)
       decl_up = std::make_unique<Declaration>(
-          decl_file ? decl_file->first->GetFile(decl_file->second)
+          decl_file ? die.GetCU()->GetFile(decl_file.value())
                     : die.GetCU()->GetFile(0),
           decl_line.value_or(0), decl_column.value_or(0));
 
