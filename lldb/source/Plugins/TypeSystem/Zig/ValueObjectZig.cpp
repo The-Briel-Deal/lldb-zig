@@ -23,7 +23,7 @@ using namespace lldb_private;
 
 ValueObjectSP ValueObjectZig::Create(ExecutionContextScope *exe_scope,
                                      CompilerType type) {
-  auto type_system = type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+  auto type_system = type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
   if (!type_system)
     return nullptr;
   return Create(exe_scope, type_system->UnwrapType(type));
@@ -45,24 +45,12 @@ llvm::Expected<uint64_t> ValueObjectZig::GetByteSize() {
     return zig_value->GetType()->GetByteSize();
   return llvm::createStringError("missing type system");
 }
-llvm::Expected<uint64_t> ValueObjectZig::GetBitSize() {
-  if (auto [type_system, zig_value] = GetZigValue(); zig_value)
-    return zig_value->GetType()->GetBitSize();
-  return llvm::createStringError("missing type system");
-}
 
 ValueType ValueObjectZig::GetValueType() const {
   if (auto [type_system, zig_value] = GetZigValue(); zig_value)
     return llvm::isa<ZigVariable>(zig_value) ? eValueTypeVariableStatic
                                              : eValueTypeConstResult;
   return eValueTypeInvalid;
-}
-
-CompilerType ValueObjectZig::GetValueAsCompilerType() {
-  auto [type_system, zig_value] = UnwrapZigValue();
-  if (ZigType *zig_type = llvm::dyn_cast_if_present<ZigType>(zig_value))
-    return type_system->WrapType(zig_type);
-  return type_system->WrapType();
 }
 
 ValueObjectSP ValueObjectZig::GetChildAtIndex(uint32_t idx, bool can_create) {
@@ -146,10 +134,10 @@ ValueObjectSP ValueObjectZig::AddressOf(Status &error) {
       type_system->GetPointer(pointer_type, zig_value, 0));
 }
 
-ValueObjectSP ValueObjectZig::Cast(const CompilerType &compiler_type) {
+ValueObjectSP ValueObjectZig::DoCast(const CompilerType &compiler_type) {
   auto [old_type_system, old_value] = UnwrapZigValue();
   auto new_type_system =
-      compiler_type.GetTypeSystem().dyn_cast_if_present<TypeSystemZig>();
+      compiler_type.GetTypeSystem().dyn_cast_or_null<TypeSystemZig>();
   if (!old_value || !new_type_system)
     return nullptr;
   ZigType *new_type = new_type_system->UnwrapType(compiler_type);
@@ -189,7 +177,8 @@ ValueObjectSP ValueObjectZig::Cast(const CompilerType &compiler_type) {
                            new_type->GetQualifiedName(), old_float_val));
       return Create(exe_scope,
                     new_type_system->GetInt(new_int_type, new_int_val));
-    } else if (ZigFloatType *new_float_type =
+    }
+    if (ZigFloatType *new_float_type =
                    llvm::dyn_cast<ZigFloatType>(new_type)) {
       llvm::APFloat float_val = old_comptime_float->GetValue();
       bool loses_info;
@@ -274,7 +263,7 @@ auto ValueObjectZig::GetZigValue() const
     -> std::pair<TypeSystemZigSP, ZigValue *> {
   TypeSystemZigSP type_system =
       CompilerType::TypeSystemSPWrapper(m_type_system.lock())
-          .dyn_cast_if_present<TypeSystemZig>();
+          .dyn_cast_or_null<TypeSystemZig>();
   return std::make_pair(std::move(type_system),
                         type_system ? m_zig_value : nullptr);
 }
