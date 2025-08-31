@@ -4331,8 +4331,7 @@ bool TypeSystemZig::DumpTypeValue(opaque_compiler_type_t type, Stream &s,
   }
   return DumpDataExtractor(data, &s, byte_offset, format, byte_size, item_count,
                            UINT32_MAX, LLDB_INVALID_ADDRESS, bitfield_bit_size,
-                           bitfield_bit_offset, exe_scope, false,
-                           flt_semantics);
+                           bitfield_bit_offset, exe_scope, false);
 }
 
 bool TypeSystemZig::DumpTypeDecl(opaque_compiler_type_t type, Stream &s) {
@@ -4479,7 +4478,7 @@ LLVM_DUMP_METHOD void TypeSystemZig::dump(opaque_compiler_type_t type) const {
 }
 #endif
 
-void TypeSystemZig::Dump(llvm::raw_ostream &output) {
+void TypeSystemZig::Dump(llvm::raw_ostream &output, llvm::StringRef filter) {
   llvm_unreachable("unimplemented");
 }
 
@@ -4584,6 +4583,7 @@ UserExpression *ScratchTypeSystemZig::GetUserExpression(
   return nullptr;
 }
 
-void ScratchTypeSystemZig::Dump(llvm::raw_ostream &output) {
+void ScratchTypeSystemZig::Dump(llvm::raw_ostream &output,
+                                llvm::StringRef filter) {
   llvm_unreachable("unimplemented");
 }
